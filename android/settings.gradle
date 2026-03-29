@@ -1,2 +1,5 @@
-include ':app'
-rootProject.name = "PalmRAG"
+// settings.gradle — PALM RAG Project Settings
+// Defines which Gradle modules are included in the build and the root project name.
+
+include ':app'                    // Include the :app module (android/app/) in the build
+rootProject.name = "PalmRAG"      // Set the root project name (used in build output paths)

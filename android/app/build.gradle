@@ -1,55 +1,71 @@
+// =============================================================================
+// app/build.gradle — PALM RAG Android App Module Build Configuration
+//
+// Configures the Android application build: plugins, SDK versions, compile options,
+// and all project dependencies (AndroidX, Room, WorkManager, Retrofit, Coroutines).
+// =============================================================================
+
+// --- Plugins ---
 plugins {
-    id 'com.android.application'
-    id 'org.jetbrains.kotlin.android'
-    id 'kotlin-kapt'
+    id 'com.android.application'       // Android application plugin for building APKs
+    id 'org.jetbrains.kotlin.android'  // Kotlin support for Android development
+    id 'kotlin-kapt'                   // Kotlin Annotation Processing Tool (required by Room)
 }
 
+// --- Android Build Configuration ---
 android {
-    namespace 'com.palmrag'
-    compileSdk 34
+    namespace 'com.palmrag'  // Application namespace for generated R class and BuildConfig
+    compileSdk 34            // Android API level used for compilation (Android 14)
 
     defaultConfig {
-        applicationId "com.palmrag"
-        minSdk 26
-        targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        applicationId "com.palmrag"  // Unique application ID on the device and Play Store
+        minSdk 26                     // Minimum Android API level supported (Android 8.0 Oreo)
+        targetSdk 34                  // Target API level for runtime behavior (Android 14)
+        versionCode 1                 // Internal version number for updates (incremented per release)
+        versionName "1.0"             // User-facing version string displayed in app info
     }
 
     buildTypes {
         release {
-            minifyEnabled false
+            minifyEnabled false  // Disable ProGuard/R8 code shrinking for now
+            // ProGuard rules files for code optimization and obfuscation (unused when minify=false)
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 
+    // Java compatibility settings for source and bytecode
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
+        sourceCompatibility JavaVersion.VERSION_17  // Accept Java 17 source syntax
+        targetCompatibility JavaVersion.VERSION_17  // Generate Java 17 bytecode
     }
 
+    // Kotlin compiler JVM target version (must match compileOptions)
     kotlinOptions {
-        jvmTarget = '17'
+        jvmTarget = '17'  // Compile Kotlin to Java 17 bytecode
     }
 }
 
+// --- Dependencies ---
 dependencies {
+    // AndroidX Core KTX: Kotlin extensions for Android framework APIs
     implementation 'androidx.core:core-ktx:1.12.0'
+    // AndroidX AppCompat: backward-compatible Activity/Fragment base classes
     implementation 'androidx.appcompat:appcompat:1.6.1'
+    // Material Components: Material Design UI widgets (TextInputLayout, buttons, themes)
     implementation 'com.google.android.material:material:1.11.0'
 
-    // Room (local DB)
-    implementation 'androidx.room:room-runtime:2.6.1'
-    implementation 'androidx.room:room-ktx:2.6.1'
-    kapt 'androidx.room:room-compiler:2.6.1'
+    // Room Database: SQLite abstraction for local notification storage
+    implementation 'androidx.room:room-runtime:2.6.1'  // Room runtime library
+    implementation 'androidx.room:room-ktx:2.6.1'      // Room Kotlin extensions (coroutine support)
+    kapt 'androidx.room:room-compiler:2.6.1'            // Room annotation processor (generates DAO impls)
 
-    // WorkManager (background sync)
+    // WorkManager: periodic background sync scheduling with constraints
     implementation 'androidx.work:work-runtime-ktx:2.9.0'
 
-    // Retrofit (HTTP client)
-    implementation 'com.squareup.retrofit2:retrofit:2.9.0'
-    implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
+    // Retrofit: type-safe HTTP client for backend API communication
+    implementation 'com.squareup.retrofit2:retrofit:2.9.0'            // Core Retrofit library
+    implementation 'com.squareup.retrofit2:converter-gson:2.9.0'      // Gson JSON converter for Retrofit
 
-    // Coroutines
+    // Kotlin Coroutines: async programming for database and network operations
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
 }

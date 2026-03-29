@@ -1,4 +1,9 @@
+<!-- strings.xml — PALM RAG String Resources
+     Defines reusable string constants referenced throughout the app.
+     Note: Most UI strings are currently hardcoded in layouts; this file
+     contains only the app name used in the manifest and title bar. -->
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Application name displayed in the launcher, title bar, and system settings -->
     <string name="app_name">PALM RAG</string>
 </resources>

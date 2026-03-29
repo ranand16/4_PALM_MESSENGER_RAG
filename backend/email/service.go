@@ -27,7 +27,7 @@ type Service struct {
 func NewService(cfg *config.Config) (*Service, error) {
 	funcMap := template.FuncMap{
 		"formatTimestamp": formatTimestamp,
-		"nl2br":          nl2br,
+		"nl2br":           nl2br,
 	}
 
 	tmpl, err := template.New("").Funcs(funcMap).ParseFS(templateFS, "templates/*.html")

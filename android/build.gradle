@@ -1,21 +1,36 @@
+// =============================================================================
+// build.gradle (Root) — PALM RAG Project-Level Build Configuration
+//
+// Configures the top-level Gradle build: declares plugin repositories,
+// buildscript dependencies (Android Gradle Plugin + Kotlin), and shared
+// repository settings for all sub-modules.
+// =============================================================================
+
+// --- Buildscript: Plugin Dependencies ---
 buildscript {
+    // Repositories where Gradle looks for buildscript dependencies (plugins)
     repositories {
-        google()
-        mavenCentral()
+        google()       // Google's Maven repository (Android Gradle Plugin, AndroidX)
+        mavenCentral() // Maven Central repository (Kotlin plugin, other JVM libraries)
     }
+    // Classpath dependencies: Gradle plugins used during the build process
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.2.0'
-        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22'
+        classpath 'com.android.tools.build:gradle:8.2.0'            // Android Gradle Plugin v8.2.0
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22' // Kotlin Gradle Plugin v1.9.22
     }
 }
 
+// --- All Projects: Shared Repository Configuration ---
+// Applies to the root project and all sub-modules (e.g., :app)
 allprojects {
+    // Repositories where modules look for library dependencies
     repositories {
-        google()
-        mavenCentral()
+        google()       // Google's Maven repository (AndroidX, Material, etc.)
+        mavenCentral() // Maven Central repository (Retrofit, Gson, Coroutines, etc.)
     }
 }
 
+// --- Clean Task: Deletes the root build directory ---
 task clean(type: Delete) {
-    delete rootProject.buildDir
+    delete rootProject.buildDir  // Removes all build outputs (build/) for a fresh build
 }

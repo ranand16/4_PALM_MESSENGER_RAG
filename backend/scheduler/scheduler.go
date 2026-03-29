@@ -16,7 +16,6 @@ type Scheduler struct {
 	cfg      *config.Config
 	stop     chan struct{}
 }
-
 func New(pipeline *rag.Pipeline, emailSvc *email.Service, cfg *config.Config) *Scheduler {
 	return &Scheduler{
 		pipeline: pipeline,

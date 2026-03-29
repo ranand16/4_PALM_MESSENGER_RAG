@@ -1,37 +1,64 @@
+<!-- =============================================================================
+     PALM Messenger RAG - Email Digest Template
+     
+     This Go html/template renders the digest email sent to users.
+     It displays a summary of captured notifications grouped by app,
+     with AI-generated summaries and collapsible raw messages.
+     
+     Template data: models.DigestData (Groups, GeneratedAt, TotalCount)
+     Custom functions: nl2br (newlines to <br>), formatTimestamp (Unix ms to HH:MM)
+     ============================================================================= -->
 <!DOCTYPE html>
 <html>
 <head>
+<!-- Set character encoding to UTF-8 for international text support -->
 <meta charset="utf-8">
+<!-- Responsive viewport meta tag for mobile email clients -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
+<!-- Body: centered layout with system fonts, max-width 600px for email readability, light gray background -->
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5;">
+  <!-- Main card container: white background with rounded corners and subtle shadow -->
   <div style="background-color: #ffffff; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+    <!-- Header: Digest title with phone emoji icon -->
     <h1 style="color: #1a1a1a; font-size: 22px; margin: 0 0 4px 0;">📱 Notification Digest</h1>
+    <!-- Metadata line: shows generation timestamp (formatted as "Jan 02, 2006 15:04") and total message count -->
     <p style="color: #666; font-size: 13px; margin: 0 0 24px 0;">
       Generated: {{.GeneratedAt.Format "Jan 02, 2006 15:04"}} · {{.TotalCount}} messages
     </p>
 
+    <!-- Conditional: show placeholder message when there are no notification groups -->
     {{if not .Groups}}
     <p style="color: #888; text-align: center; padding: 40px 0;">No new notifications in this period.</p>
     {{end}}
 
+    <!-- Loop: iterate over each DigestGroup (one per app) -->
     {{range .Groups}}
+    <!-- App group container: blue left border for visual grouping -->
     <div style="margin-bottom: 24px; border-left: 3px solid #4A90D9; padding-left: 16px;">
+      <!-- App name heading with message count badge -->
       <h2 style="color: #333; font-size: 16px; margin: 0 0 8px 0;">
         {{.AppName}}
         <span style="color: #999; font-size: 12px; font-weight: normal;">({{len .Notifications}} messages)</span>
       </h2>
       
+      <!-- AI-generated summary box: light gray background for visual distinction -->
       <div style="background-color: #f8f9fa; border-radius: 6px; padding: 12px; margin-bottom: 12px;">
+        <!-- Summary text: nl2br converts newlines to <br> tags for proper HTML rendering -->
         <p style="color: #444; font-size: 14px; margin: 0; line-height: 1.5;">
           {{nl2br .Summary}}
         </p>
       </div>
 
+      <!-- Collapsible raw messages section using HTML5 details/summary elements -->
       <details style="margin-top: 8px;">
+        <!-- Click to expand/collapse the raw notification list -->
         <summary style="color: #888; font-size: 12px; cursor: pointer;">Show raw messages</summary>
+        <!-- Unstyled list of individual notification messages -->
         <ul style="list-style: none; padding: 8px 0 0 0; margin: 0;">
+          <!-- Loop: iterate over each StoredNotification within this app group -->
           {{range .Notifications}}
+          <!-- Individual message: title in bold followed by text content, separated by bottom border -->
           <li style="color: #555; font-size: 13px; padding: 4px 0; border-bottom: 1px solid #eee;">
             <strong>{{.Title}}</strong>: {{.Text}}
           </li>
@@ -41,7 +68,9 @@
     </div>
     {{end}}
 
+    <!-- Horizontal divider separating content from footer -->
     <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0 12px 0;">
+    <!-- Footer: branding line showing technology stack -->
     <p style="color: #aaa; font-size: 11px; text-align: center; margin: 0;">
       PALM Messenger RAG · Powered by Ollama + Qdrant
     </p>

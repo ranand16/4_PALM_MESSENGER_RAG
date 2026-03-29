@@ -1,61 +1,104 @@
-version: "3.8"
+# =============================================================================
+# docker-compose.yml — PALM Messenger RAG Infrastructure Stack
+#
+# Orchestrates the complete backend infrastructure:
+# 1. Qdrant: Vector database for storing notification embeddings
+# 2. Ollama: Local LLM server for embeddings and chat completions
+# 3. Ollama-init: One-shot container to pull required AI models on first run
+# 4. Backend: Go application server (API, RAG pipeline, scheduler, email)
+#
+# Usage: docker-compose up -d
+# Requires: .env file in project root with SMTP and API configuration
+# =============================================================================
+
+version: "3.8"  # Docker Compose file format version (supports healthchecks, depends_on conditions)
 
 services:
+  # ---------------------------------------------------------------------------
+  # Qdrant — Vector Database for Notification Embeddings
+  # Stores notification text as 768-dimensional vectors (nomic-embed-text)
+  # and supports semantic similarity search for RAG context retrieval.
+  # REST API on port 6333, gRPC on port 6334 (used by the Go backend).
+  # ---------------------------------------------------------------------------
   qdrant:
-    image: qdrant/qdrant:latest
+    image: qdrant/qdrant:latest       # Official Qdrant Docker image (latest version)
     ports:
-      - "6333:6333"
-      - "6334:6334"
+      - "6333:6333"                    # REST API port (dashboard and HTTP interface)
+      - "6334:6334"                    # gRPC port (used by Go backend for high-performance operations)
     volumes:
-      - qdrant_storage:/qdrant/storage
-    restart: unless-stopped
+      - qdrant_storage:/qdrant/storage # Named volume for persistent vector data across restarts
+    restart: unless-stopped            # Auto-restart unless manually stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]  # HTTP health endpoint
+      interval: 10s                    # Check health every 10 seconds
+      timeout: 5s                      # Timeout for each health check attempt
+      retries: 5                       # Mark unhealthy after 5 consecutive failures
 
+  # ---------------------------------------------------------------------------
+  # Ollama — Local LLM Server for Embeddings and Chat Completions
+  # Serves AI models locally: nomic-embed-text for embeddings (768-dim vectors)
+  # and mistral:7b for chat-based notification summarization.
+  # API available on port 11434.
+  # ---------------------------------------------------------------------------
   ollama:
-    image: ollama/ollama:latest
+    image: ollama/ollama:latest        # Official Ollama Docker image (latest version)
     ports:
-      - "11434:11434"
+      - "11434:11434"                  # Ollama REST API port (used by Go backend)
     volumes:
-      - ollama_data:/root/.ollama
-    restart: unless-stopped
+      - ollama_data:/root/.ollama      # Named volume for persistent model storage across restarts
+    restart: unless-stopped            # Auto-restart unless manually stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/version"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/version"]  # API version endpoint
+      interval: 10s                    # Check health every 10 seconds
+      timeout: 5s                      # Timeout for each health check attempt
+      retries: 5                       # Mark unhealthy after 5 consecutive failures
 
+  # ---------------------------------------------------------------------------
+  # Ollama-init — One-Shot Model Puller
+  # Runs once after Ollama is healthy to download the required AI models.
+  # Pulls nomic-embed-text (embedding model) and mistral:7b (summarization model).
+  # Exits after completion and does not restart.
+  # ---------------------------------------------------------------------------
   ollama-init:
-    image: ollama/ollama:latest
+    image: ollama/ollama:latest        # Uses the same Ollama image for the CLI tools
     depends_on:
       ollama:
-        condition: service_healthy
-    entrypoint: ["/bin/sh", "-c"]
+        condition: service_healthy     # Wait until Ollama service passes health checks
+    entrypoint: ["/bin/sh", "-c"]      # Override entrypoint to run shell commands
     command:
       - |
-        OLLAMA_HOST=http://ollama:11434 ollama pull nomic-embed-text
-        OLLAMA_HOST=http://ollama:11434 ollama pull mistral:7b
-        echo "Models pulled successfully"
-    restart: "no"
+        OLLAMA_HOST=http://ollama:11434 ollama pull nomic-embed-text  # Pull embedding model (~274MB)
+        OLLAMA_HOST=http://ollama:11434 ollama pull mistral:7b        # Pull summarization model (~4.1GB)
+        echo "Models pulled successfully"                              # Log completion
+    restart: "no"                      # Never restart — this is a one-shot initialization task
 
+  # ---------------------------------------------------------------------------
+  # Backend — Go Application Server (PALM RAG)
+  # The main application: REST API for notification ingestion, RAG pipeline
+  # for embedding/retrieval, scheduler for periodic digest generation,
+  # and email service for sending digest summaries via SMTP.
+  # Built from backend/Dockerfile, configured via .env file.
+  # ---------------------------------------------------------------------------
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: ./backend               # Build context directory containing Go source code
+      dockerfile: Dockerfile           # Dockerfile to use for building the backend image
     ports:
-      - "8000:8000"
+      - "8000:8000"                    # HTTP API port (exposed for Android app and external access)
     env_file:
-      - .env
+      - .env                           # Load environment variables from .env file (SMTP, API keys, etc.)
     depends_on:
       qdrant:
-        condition: service_healthy
+        condition: service_healthy     # Wait until Qdrant vector DB is healthy before starting
       ollama:
-        condition: service_healthy
-    restart: unless-stopped
+        condition: service_healthy     # Wait until Ollama LLM server is healthy before starting
+    restart: unless-stopped            # Auto-restart unless manually stopped
 
+# =============================================================================
+# Named Volumes — Persistent Data Storage
+# These volumes survive container restarts and docker-compose down/up cycles.
+# Use 'docker volume rm' to explicitly delete stored data.
+# =============================================================================
 volumes:
-  qdrant_storage:
-  ollama_data:
+  qdrant_storage:   # Persistent storage for Qdrant vector database index and collections
+  ollama_data:      # Persistent storage for downloaded Ollama AI models

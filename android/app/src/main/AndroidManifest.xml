@@ -1,11 +1,22 @@
+<!-- =============================================================================
+     AndroidManifest.xml — PALM RAG Application Manifest
+     
+     Declares the application's package name, required permissions, components
+     (activities and services), and their intent filters. This is the entry point
+     for the Android build system and runtime to understand the app's structure.
+     ============================================================================= -->
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.palmrag">
+    package="com.palmrag"> <!-- Application package name used for code generation and app identity -->
 
+    <!-- Permission: Allow the app to make HTTP requests to the backend server -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Permission: Required by NotificationListenerService to capture system notifications -->
     <uses-permission android:name="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" />
+    <!-- Permission: Allow the app to run background services (WorkManager sync) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 
+    <!-- Application configuration: backup enabled, Material Components theme, RTL support -->
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -13,20 +24,28 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.MaterialComponents.Light.DarkActionBar">
 
+        <!-- SettingsActivity: Main launcher activity (app entry point) -->
+        <!-- Allows user to configure backend URL, API key, and grant notification access -->
         <activity
             android:name=".ui.SettingsActivity"
-            android:exported="true">
+            android:exported="true"> <!-- exported=true required for LAUNCHER activities -->
             <intent-filter>
+                <!-- MAIN action designates this as the app's primary entry point -->
                 <action android:name="android.intent.action.MAIN" />
+                <!-- LAUNCHER category makes this activity appear in the app drawer -->
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
+        <!-- NotificationListener: System-level notification capture service -->
+        <!-- Requires BIND_NOTIFICATION_LISTENER_SERVICE permission for security -->
+        <!-- User must manually grant access in Android system settings -->
         <service
             android:name=".NotificationListener"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
-            android:exported="true">
+            android:exported="true"> <!-- exported=true required for system to bind to this service -->
             <intent-filter>
+                <!-- Declares this service as a NotificationListenerService for the system -->
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
