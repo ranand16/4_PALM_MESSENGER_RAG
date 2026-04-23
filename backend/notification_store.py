@@ -63,6 +63,8 @@ def store_notification(notification: Notification) -> str:
         "app": notification.app,
         "sender": notification.sender or "",
         "timestamp": ts,
+        "source_id": notification.source_id or "",
+        "extra": notification.metadata or {},
     }
 
     # Insert exactly one item into Chroma using list-based API arguments.

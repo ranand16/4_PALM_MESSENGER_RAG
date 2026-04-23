@@ -1,0 +1,30 @@
+{
+  "services": [
+    {
+      "name": "personal_email",
+      "type": "email",
+      "enabled": true,
+      "description": "Fetch new messages from your personal email inbox.",
+      "config": {
+        "imap_host": "imap.gmail.com",
+        "email_address": "you@example.com",
+        "password_env": "EMAIL_PASSWORD",
+        "mailbox": "INBOX",
+        "fetch_since_days": 1
+      }
+    },
+    {
+      "name": "personal_telegram",
+      "type": "telegram",
+      "enabled": true,
+      "description": "Fetch new messages from your personal Telegram chats.",
+      "config": {
+        "api_id": 123456,
+        "api_hash": "your_api_hash_here",
+        "session_file": "./secrets/telegram.session",
+        "chat_filter": "personal",
+        "fetch_since_seconds": 86400
+      }
+    }
+  ]
+}

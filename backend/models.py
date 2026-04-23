@@ -22,13 +22,17 @@ from pydantic import BaseModel
 
 # Notification is the canonical schema for one forwarded phone notification.
 class Notification(BaseModel):
-    """Represents one incoming notification sent by the Android app."""
+    """Represents one incoming item fetched from an external service."""
 
-    # The source application name (for example: WhatsApp, Telegram, Signal).
+    # The source service name (for example: Email, Telegram).
     app: str
-    # The contact or group that sent the message (can be absent for some apps).
+    # The sender or chat name for this message.
     sender: Optional[str] = None
-    # The text body that appeared inside the phone notification.
+    # The text content of the message or e-mail.
     content: str
     # UTC timestamp in ISO-8601 format; server can auto-fill when missing.
     timestamp: Optional[str] = None
+    # Unique identifier from the source system (message UID, Telegram message id, etc.).
+    source_id: Optional[str] = None
+    # Extra metadata from the source service.
+    metadata: Optional[dict] = None

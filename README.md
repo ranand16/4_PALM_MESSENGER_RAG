@@ -1,35 +1,30 @@
 # PALM Messenger RAG
 
-> **Read your WhatsApp, Telegram & other messaging notifications from the office — without your phone.**
+> **Consolidate Email and Telegram into one smart digest system.**
 
-This project forwards Android messaging-app notifications to a Python backend that uses a RAG (Retrieval-Augmented Generation) pipeline powered by Google Gemini to compose a consolidated e-mail digest, delivered on a configurable schedule.
+This project no longer depends on an Android notification forwarder. Instead, it fetches new items directly from configured services, stores them in a unified backend, and generates an AI-powered digest using Google Gemini.
 
 ---
 
 ## Architecture
 
 ```
-Android Phone                    PC / Server                       Your Inbox
-─────────────────────────────    ───────────────────────────────   ──────────────
- WhatsApp / Telegram / Signal ──► FastAPI server (POST /notifications)
-                                        │
-                                   ChromaDB (vector store)
-                                        │
-                                   Google Gemini (map-reduce RAG)
-                                        │
-                                   APScheduler (cron) ──────────────► E-mail digest
+Email Service  ──┐
+                 ├─→ Service Agents ──→ ChromaDB ──→ Gemini Digest ──→ E-mail Delivery
+Telegram Service ─┘
 ```
 
 ### Components
 
 | Component | Location | Description |
 |-----------|----------|-------------|
-| **Android app** | `android/` | Kotlin `NotificationListenerService` that captures notifications and POSTs them to the backend |
-| **FastAPI server** | `backend/main.py` | REST API that receives and stores notifications |
+| **Service config** | `backend/config.json` | List of enabled services and fetch settings |
+| **Service connectors** | `backend/mcp_servers/` | Email + Telegram fetching logic |
+| **Orchestrator** | `backend/agents/orchestrator.py` | Spawns one agent per service and stores results |
 | **Notification store** | `backend/notification_store.py` | ChromaDB-backed persistence layer |
-| **RAG engine** | `backend/rag_engine.py` | Google Gemini map-reduce digest builder |
+| **RAG engine** | `backend/rag_engine.py` | Google Gemini summary builder |
 | **E-mail sender** | `backend/email_sender.py` | SMTP e-mail dispatch (plain-text + HTML) |
-| **Scheduler** | `backend/scheduler.py` | APScheduler cron job (default: every hour) |
+| **Scheduler** | `backend/scheduler.py` | Optional periodic digest runner |
 
 ---
 
@@ -41,7 +36,7 @@ Android Phone                    PC / Server                       Your Inbox
 
 ```bash
 cd backend
-cp .env.example .env          # fill in your API key, SMTP credentials, etc.
+cp .env.example .env          # fill in API keys, SMTP credentials, and source settings
 pip install -r requirements.txt
 python main.py
 ```
@@ -49,6 +44,13 @@ python main.py
 The server listens on `http://0.0.0.0:8000` by default.
 
 **Interactive API docs:** open `http://localhost:8000/docs` in a browser.
+
+#### Service configuration
+
+Services are configured in `backend/config.json`. Each item is a separate service agent. The current example includes:
+
+- `personal_email` — fetches new e-mail from IMAP
+- `personal_telegram` — fetches new Telegram messages from your account
 
 #### Environment variables (`.env`)
 
@@ -59,74 +61,71 @@ The server listens on `http://0.0.0.0:8000` by default.
 | `SMTP_PORT` | SMTP port (default `587`) |
 | `SMTP_USER` | SMTP login username |
 | `SMTP_PASSWORD` | SMTP login password / App Password |
-| `EMAIL_FROM` | Sender address shown in the digest e-mail |
-| `EMAIL_TO` | Recipient address (your office e-mail) |
-| `DIGEST_CRON_HOUR` | Cron hour expression (default `*/1` = every hour) |
-| `DIGEST_CRON_MINUTE` | Cron minute expression (default `0`) |
+| `EMAIL_FROM` | Sender address shown in digest e-mail |
+| `EMAIL_TO` | Delivery recipient address |
 | `CHROMA_PERSIST_DIR` | Directory for ChromaDB data (default `./chroma_db`) |
 | `HOST` | Server bind address (default `0.0.0.0`) |
 | `PORT` | Server port (default `8000`) |
+| `EMAIL_IMAP_HOST` | IMAP server hostname for personal email |
+| `EMAIL_ADDRESS` | Email address to fetch from |
+| `EMAIL_PASSWORD` | Password or app password for the inbox |
+| `EMAIL_MAILBOX` | Mailbox to scan (default `INBOX`) |
+| `TELEGRAM_API_ID` | Telegram API id |
+| `TELEGRAM_API_HASH` | Telegram API hash |
+| `TELEGRAM_SESSION_FILE` | Telegram session file path |
 
 #### API endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/health` | Liveness probe |
-| `POST` | `/notifications` | Store a single notification |
-| `POST` | `/notifications/batch` | Store multiple notifications |
+| `POST` | `/sync` | Fetch new data from all configured services |
 | `GET` | `/notifications` | List stored notifications |
 | `POST` | `/digest/trigger` | Manually trigger a digest e-mail |
 
-### 2 — Android App
+---
 
-**Prerequisites:** Android Studio + JDK 17, Android device running API 24+
+## How to run a sync
+
+Trigger a sync for Email and Telegram data using:
 
 ```bash
-cd android
-# open in Android Studio, then Build → Make Project
-# install the APK on your Android phone
+curl -X POST http://localhost:8000/sync
 ```
 
-**Setup on the phone:**
+That call spawns one agent per enabled service, collects all new items, and stores them in ChromaDB.
 
-1. Open the **PALM Messenger RAG** app.
-2. Enter your backend server URL (e.g. `http://192.168.1.10:8000` — your office PC's local IP, or a publicly reachable URL).
-3. Tap **Save**.
-4. Tap **Open Notification Access Settings** and grant permission to the app.
+## How to generate the digest
 
-Once permission is granted the app runs silently in the background. Every WhatsApp, Telegram, Signal, Viber, or Messenger notification will be forwarded to the backend automatically.
+Use the digest trigger endpoint:
 
-> **Tip:** Use [ngrok](https://ngrok.com/) or a VPN to expose your local server to the internet so the phone can reach it over a mobile data connection.
+```bash
+curl -X POST http://localhost:8000/digest/trigger
+```
+
+This builds a Gemini-powered summary from stored items, sends it via SMTP, and clears the storage.
+
+---
+
+## Notes
+
+- The Android folder has been removed in favor of direct service connectors.
+- The system is now driven by `backend/config.json` and service agent logic.
+- New services can be added by creating a new connector in `backend/mcp_servers/` and registering it in `backend/agents/orchestrator.py`.
 
 ---
 
 ## Running Tests
 
 ```bash
-pip install pytest httpx
-pytest tests/ -v
+cd backend
+pip install -r requirements.txt pytest httpx
+pytest ../tests/test_backend.py -v
 ```
 
 ---
 
-## Gmail Setup
+## Security
 
-1. Enable **2-Step Verification** on your Google account.
-2. Go to **My Account → Security → App Passwords**.
-3. Generate an App Password for "Mail / Other device".
-4. Use that 16-character password as `SMTP_PASSWORD` in your `.env`.
-
----
-
-## Supported Apps
-
-The Android app currently monitors notifications from:
-
-- WhatsApp & WhatsApp Business
-- Telegram
-- Signal
-- Viber
-- Facebook Messenger
-
-To add more apps, add their package names to `MONITORED_PACKAGES` in `NotificationForwarderService.kt`.
+Keep your email and Telegram credentials secret. Do not commit `.env` or `backend/config.json` with real secrets into version control.
 

@@ -43,9 +43,13 @@ class TestNotificationModel:
             sender="Alice",
             content="Meeting at 3pm",
             timestamp="2024-01-01T10:00:00Z",
+            source_id="12345",
+            metadata={"chat": "Alice"},
         )
         assert n.sender == "Alice"
         assert n.timestamp == "2024-01-01T10:00:00Z"
+        assert n.source_id == "12345"
+        assert n.metadata == {"chat": "Alice"}
 
 
 # ---------------------------------------------------------------------------
@@ -136,18 +140,16 @@ class TestFastAPIRoutes:
         assert response.status_code == 200
         assert response.json()["status"] == "ok"
 
-    def test_receive_notification(self):
-        mock_store = MagicMock(return_value="test-id-123")
-        with patch("main.store_notification", mock_store):
+    def test_trigger_sync(self):
+        mock_sync = MagicMock(return_value={"services_synced": ["personal_email"], "messages_fetched": 2})
+        with patch("main.sync_services", mock_sync):
             from fastapi.testclient import TestClient
             import main as main_module
             client = TestClient(main_module.app)
-            response = client.post(
-                "/notifications",
-                json={"app": "WhatsApp", "sender": "Alice", "content": "Hello"},
-            )
-        assert response.status_code == 201
-        assert response.json()["status"] == "stored"
+            response = client.post("/sync")
+        assert response.status_code == 200
+        assert response.json()["status"] == "synced"
+        assert response.json()["messages_fetched"] == 2
 
     def test_list_notifications(self):
         mock_items = [
@@ -169,19 +171,3 @@ class TestFastAPIRoutes:
         data = response.json()
         assert data["count"] == 1
 
-    def test_receive_notification_batch(self):
-        mock_store = MagicMock(side_effect=["id-1", "id-2"])
-        with patch("main.store_notification", mock_store):
-            from fastapi.testclient import TestClient
-            import main as main_module
-            client = TestClient(main_module.app)
-            response = client.post(
-                "/notifications/batch",
-                json=[
-                    {"app": "WhatsApp", "sender": "Alice", "content": "Hello"},
-                    {"app": "Telegram", "sender": "Bob", "content": "Hey"},
-                ],
-            )
-        assert response.status_code == 201
-        assert response.json()["status"] == "stored"
-        assert len(response.json()["ids"]) == 2

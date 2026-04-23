@@ -5,9 +5,9 @@ This file is the backend entry point.
 
 In plain words, it does these jobs:
 1) Starts a FastAPI web server.
-2) Accepts incoming mobile notifications.
-3) Stores those notifications for later AI summarization.
-4) Exposes endpoints for health checks and manual digest triggering.
+2) Fetches data from configured services such as Email and Telegram.
+3) Stores fetched items for later AI summarization.
+4) Exposes endpoints for health checks, sync, and manual digest triggering.
 5) Starts and stops a background scheduler with the app lifecycle.
 """
 
@@ -45,6 +45,8 @@ from notification_store import (
 )
 # AI pipeline that turns stored notifications into a digest.
 from rag_engine import build_digest
+# Service orchestrator that fetches new email and Telegram data.
+from agents.orchestrator import sync_services
 # Scheduler factory to create periodic digest jobs.
 from scheduler import create_scheduler
 
@@ -80,9 +82,9 @@ app = FastAPI(
     title="PALM Messenger RAG",
     # High-level description shown in OpenAPI/Swagger docs.
     description=(
-        "Receives Android notifications (WhatsApp, Telegram, …), stores them "
-        "in a vector database, and periodically sends a RAG-generated digest "
-        "to a configured e-mail address."
+        "Fetches new items from configured services like Email and Telegram, "
+        "stores them in a vector database, and periodically sends a RAG-generated "
+        "digest to a configured e-mail address."
     ),
     # Semantic API version.
     version="1.0.0",
@@ -98,51 +100,24 @@ def health():
     return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 
-# Endpoint to accept one notification object at a time.
-@app.post(
-    "/notifications",
-    status_code=status.HTTP_201_CREATED,
-    tags=["notifications"],
-)
-def receive_notification(notification: Notification):
-    """Store one notification sent by the Android forwarding service."""
-    # If client omitted timestamp, fill it with current UTC time.
-    if not notification.timestamp:
-        notification.timestamp = datetime.now(timezone.utc).isoformat()
-    # Persist notification and get generated document ID.
-    doc_id = store_notification(notification)
-    # Log key fields to support auditing and troubleshooting.
-    logger.info(
-        "Stored notification id=%s app=%s sender=%s",
-        doc_id,
-        notification.app,
-        notification.sender,
-    )
-    # Return success response and new storage ID.
-    return {"id": doc_id, "status": "stored"}
+# Endpoint to trigger a sync run for all configured services.
+@app.post("/sync", tags=["sync"])
+def trigger_sync():
+    """Fetch new data from configured services and store it for later digest generation."""
+    try:
+        result = sync_services()
+    except Exception as exc:
+        logger.exception("Sync endpoint failed.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(exc),
+        )
 
-
-# Endpoint to accept multiple notifications in one request.
-@app.post(
-    "/notifications/batch",
-    status_code=status.HTTP_201_CREATED,
-    tags=["notifications"],
-)
-def receive_notifications_batch(notifications: List[Notification]):
-    """Store a list of notifications and return all generated IDs."""
-    # Collect IDs for each stored notification.
-    ids = []
-    # Iterate over each incoming notification object.
-    for notif in notifications:
-        # Fill missing timestamp so all items have a consistent schema.
-        if not notif.timestamp:
-            notif.timestamp = datetime.now(timezone.utc).isoformat()
-        # Store item and save generated ID.
-        ids.append(store_notification(notif))
-    # Log batch size for operational visibility.
-    logger.info("Stored batch of %d notifications.", len(ids))
-    # Return all IDs so client can trace stored objects.
-    return {"ids": ids, "status": "stored"}
+    return {
+        "status": "synced",
+        "services_synced": result["services_synced"],
+        "messages_fetched": result["messages_fetched"],
+    }
 
 
 # Endpoint that returns latest stored notifications.
