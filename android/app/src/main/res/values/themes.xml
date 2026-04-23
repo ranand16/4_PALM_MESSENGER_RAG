@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <style name="Theme.PalmMessengerRAG" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
-        <item name="colorPrimary">#2C7BE5</item>
-        <item name="colorPrimaryVariant">#1A5BB5</item>
-        <item name="colorOnPrimary">#FFFFFF</item>
-    </style>
-</resources>
